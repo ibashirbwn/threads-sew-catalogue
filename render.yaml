@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: threads-sew-catalogue
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --timeout 120 --workers 1
+    envVars:
+      - key: DROPBOX_EXCEL_LINK
+        value: https://www.dropbox.com/scl/fi/neoaq7axmkynwl58uzz2n/Raw-Data.xlsx?rlkey=x03ydj31niwbwbj8ncxs8odzu&st=e5gelqa6&dl=0
+      - key: DROPBOX_IMAGES_LINK
+        value: https://www.dropbox.com/scl/fo/5jbih93754ynb7pu3it1g/AAUndhab1gVO8qvBjNs_HJM?rlkey=fnkhtb4k0nd8wv8hh44pudvu3&dl=1

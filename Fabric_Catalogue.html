@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Threads &amp; Sew — Fabric Catalogue</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js"></script>
+<style>
+:root{--brand:#1a2e4a;--brand2:#2d5380;--accent:#e8a84c;--accent2:#f5c97a;--bg:#f4f5f7;--card:#fff;--text:#1a1a2e;--muted:#6b7280;--border:#e2e8f0;--green:#10b981;--red:#ef4444;--radius:12px;--shadow:0 2px 12px rgba(0,0,0,.09);--card-img-h:200px;--card-min-w:220px}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* HEADER */
+header{background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:64px;position:fixed;top:0;left:0;right:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.25)}
+.header-logo{display:flex;align-items:center;gap:12px}
+.header-logo img{height:38px;filter:brightness(0) invert(1)}
+.header-right{display:flex;align-items:center;gap:16px}
+.results-count{color:rgba(255,255,255,.7);font-size:13px}
+.cart-btn{background:var(--accent);color:var(--brand);border:none;cursor:pointer;font-weight:700;border-radius:8px;padding:9px 18px;font-size:14px;display:flex;align-items:center;gap:8px;transition:all .2s}
+.cart-btn:hover{background:var(--accent2);transform:translateY(-1px)}
+.cart-btn svg{width:18px;height:18px}
+
+/* LAYOUT */
+.app-body{display:flex;margin-top:64px;min-height:calc(100vh - 64px)}
+
+/* SIDEBAR */
+.sidebar{width:280px;min-width:280px;background:var(--card);border-right:1px solid var(--border);padding:20px 16px;overflow-y:auto;position:fixed;top:64px;bottom:0;left:0;z-index:50}
+.sidebar-section{margin-bottom:22px}
+.sidebar-section h3{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px}
+
+/* SEARCH */
+.search-wrap{position:relative;margin-bottom:20px}
+.search-wrap input{width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 14px 9px 38px;font-size:14px;outline:none;transition:border-color .2s}
+.search-wrap input:focus{border-color:var(--brand2)}
+.search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--muted)}
+
+/* CHIPS */
+.chip-group{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:5px 11px;border-radius:20px;border:1.5px solid var(--border);background:var(--bg);font-size:12px;cursor:pointer;transition:all .15s;user-select:none}
+.chip:hover{border-color:var(--brand2);color:var(--brand2)}
+.chip.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+
+/* RANGE / STOCK INPUT */
+.range-wrap label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+.range-wrap input[type=range]{width:100%;accent-color:var(--brand2);margin-top:4px}
+.stock-num{width:80px;border:1.5px solid var(--border);border-radius:7px;padding:5px 8px;font-size:13px;outline:none}
+.stock-num:focus{border-color:var(--brand2)}
+.filter-check{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-top:6px}
+.filter-check input{accent-color:var(--brand2);width:15px;height:15px;cursor:pointer}
+.clear-btn{width:100%;padding:9px;border:1.5px solid var(--border);background:none;border-radius:8px;font-size:13px;cursor:pointer;color:var(--muted);transition:all .15s;margin-top:4px}
+.clear-btn:hover{border-color:var(--red);color:var(--red)}
+
+/* SIZE PRESETS */
+.size-preset{padding:4px 11px;border-radius:6px;border:1.5px solid var(--border);background:var(--bg);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;color:var(--muted)}
+.size-preset:hover{border-color:var(--brand2);color:var(--brand2)}
+.size-preset.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+
+/* MAIN */
+.main-content{flex:1;margin-left:280px;padding:24px}
+.grid-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.grid-header h2{font-size:18px;font-weight:700;color:var(--brand)}
+.fabric-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--card-min-w),1fr));gap:18px}
+
+/* CARDS */
+.fabric-card{background:var(--card);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);cursor:pointer;transition:transform .2s,box-shadow .2s;position:relative;border:2px solid transparent}
+.fabric-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.13)}
+.fabric-card.selected{border-color:var(--accent);box-shadow:0 0 0 3px rgba(232,168,76,.25)}
+.card-img-wrap{position:relative;width:100%;height:var(--card-img-h);background:#e8edf5;overflow:hidden}
+.card-img-wrap img{width:100%;height:100%;object-fit:cover;transition:transform .3s}
+.fabric-card:hover .card-img-wrap img{transform:scale(1.06)}
+.card-img-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#e8edf5,#c8d3e5);flex-direction:column;gap:8px}
+.card-img-placeholder svg{width:40px;height:40px;color:#94a3b8}
+.card-img-placeholder span{font-size:11px;color:#94a3b8}
+.cat-badge{position:absolute;top:10px;left:10px;background:rgba(26,46,74,.85);color:#fff;font-size:10px;font-weight:600;padding:3px 8px;border-radius:12px;backdrop-filter:blur(4px)}
+.sel-check{position:absolute;top:10px;right:10px;width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;border:2px solid #ccc;transition:all .15s}
+.fabric-card.selected .sel-check{background:var(--accent);border-color:var(--accent)}
+.sel-check svg{width:14px;height:14px;color:var(--brand)}
+.card-body{padding:12px}
+.card-design{font-size:16px;font-weight:700;color:var(--brand)}
+.card-color{font-size:12px;color:var(--muted);margin-top:2px}
+.card-meta{display:flex;flex-direction:column;gap:5px;margin-top:10px}
+.stock-pill{font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px;display:inline-block}
+.stock-high{background:#d1fae5;color:#059669}
+.stock-mid{background:#fef3c7;color:#d97706}
+.stock-low{background:#fee2e2;color:#dc2626}
+.stock-zero{background:#f1f5f9;color:#94a3b8}
+.card-style{font-size:11px;color:var(--muted);background:var(--bg);padding:3px 8px;border-radius:6px;display:inline-block}
+.add-btn{width:100%;margin-top:10px;padding:8px;background:var(--brand);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s}
+.add-btn:hover{background:var(--brand2)}
+.add-btn.remove{background:#fee2e2;color:var(--red)}
+.add-btn.remove:hover{background:#fecaca}
+
+/* LAZY SHIMMER */
+.lazy-img{opacity:0;transition:opacity .35s}
+.lazy-img.loaded{opacity:1}
+.img-shimmer{position:absolute;inset:0;background:linear-gradient(90deg,#e8edf5 25%,#d0d9e8 50%,#e8edf5 75%);background-size:200% 100%;animation:shimmer 1.4s infinite}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* MODAL */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:12px;opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-backdrop.open{opacity:1;pointer-events:all}
+.modal{background:var(--card);border-radius:16px;max-width:600px;width:100%;max-height:95vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);transform:scale(.95);transition:transform .2s}
+.modal-backdrop.open .modal{transform:scale(1)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:18px 24px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--card);z-index:2;border-radius:16px 16px 0 0}
+.modal-header h2{font-size:18px;font-weight:700;color:var(--brand)}
+.modal-close{background:none;border:none;cursor:pointer;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--muted);transition:background .15s}
+.modal-close:hover{background:var(--bg)}
+.modal-body{padding:24px}
+
+/* DETAIL MODAL — image left / info right */
+.detail-modal .modal{max-width:1100px;width:96vw;max-height:95vh;overflow:hidden}
+.detail-modal .modal-body{display:flex;flex-direction:row;align-items:stretch;padding:0;min-height:0}
+.detail-img{overflow:hidden;width:58%;min-width:280px;background:#111;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.detail-img img{width:100%;height:100%;object-fit:contain;background:#111;display:block}
+.detail-img-ph{width:100%;height:100%;min-height:340px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#e8edf5,#c8d3e5)}
+.detail-info{flex:1;padding:24px 28px 28px;overflow-y:auto;max-height:calc(95vh - 60px)}
+@media(max-width:640px){
+  .detail-modal .modal-body{flex-direction:column}
+  .detail-img{width:100%;min-height:240px}
+}
+.detail-info h3{font-size:22px;font-weight:800;color:var(--brand)}
+.detail-info .subtitle{color:var(--muted);font-size:13px;margin-bottom:12px}
+.detail-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 24px}
+.info-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)}
+.info-row:last-child{border-bottom:none}
+.info-label{font-size:12px;color:var(--muted);font-weight:500}
+.info-value{font-size:13px;font-weight:600;color:var(--text)}
+.detail-add-btn{width:100%;padding:12px;background:var(--brand);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;margin-top:16px;transition:background .15s}
+.detail-add-btn:hover{background:var(--brand2)}
+.detail-add-btn.remove{background:#fee2e2;color:var(--red)}
+
+/* CART */
+.cart-item{display:flex;align-items:center;gap:12px;padding:10px;background:var(--bg);border-radius:10px;margin-bottom:10px}
+.cart-item img{width:56px;height:56px;object-fit:cover;border-radius:8px;flex-shrink:0}
+.cart-item-ph{width:56px;height:56px;border-radius:8px;background:linear-gradient(135deg,#e8edf5,#c8d3e5);flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.cart-item-info{flex:1}
+.cart-item-code{font-weight:700;font-size:14px;color:var(--brand)}
+.cart-item-sub{font-size:12px;color:var(--muted)}
+.cart-item-remove{background:none;border:none;cursor:pointer;color:var(--muted);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.cart-item-remove:hover{background:#fee2e2;color:var(--red)}
+.cart-empty{text-align:center;padding:40px 20px;color:var(--muted)}
+.proceed-btn{width:100%;padding:13px;background:var(--accent);color:var(--brand);border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;margin-top:16px;transition:all .15s}
+.proceed-btn:hover{background:var(--accent2)}
+.proceed-btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* ORDER FORM */
+.order-modal .modal{max-width:920px;width:96vw}
+.form-section-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--brand2);margin:18px 0 10px;border-bottom:2px solid var(--accent);padding-bottom:5px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.form-row.single{grid-template-columns:1fr}
+.form-group{display:flex;flex-direction:column;gap:5px}
+.form-group label{font-size:12px;font-weight:600;color:var(--muted)}
+.form-group input,.form-group textarea,.form-group select{border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;outline:none;font-family:inherit;transition:border-color .15s}
+.form-group input:focus,.form-group textarea:focus{border-color:var(--brand2)}
+.form-group textarea{resize:vertical;min-height:70px}
+.order-table-wrap{overflow-x:auto;margin:14px 0;border-radius:10px;border:1px solid var(--border)}
+.order-table{width:100%;border-collapse:collapse;font-size:12px;min-width:720px}
+.order-table th{background:var(--brand);color:#fff;padding:10px 6px;text-align:center;font-weight:600;font-size:11px}
+.order-table th:first-child{border-radius:10px 0 0 0;text-align:left;padding-left:12px}
+.order-table th:last-child{border-radius:0 10px 0 0}
+.order-table td{padding:8px 5px;border-bottom:1px solid var(--border);text-align:center}
+.order-table td:first-child{text-align:left;padding-left:12px}
+.order-table tr:last-child td{border-bottom:none}
+.order-table tr:hover td{background:#f8fafc}
+.qty-input{width:44px;border:1px solid var(--border);border-radius:5px;padding:4px 4px;text-align:center;font-size:12px;outline:none}
+.qty-input:focus{border-color:var(--brand2)}
+.fit-select{border:1px solid var(--border);border-radius:5px;padding:4px 5px;font-size:12px;outline:none}
+.row-total{font-weight:700;color:var(--brand)}
+.remove-row-btn{background:none;border:none;cursor:pointer;color:#cbd5e1;transition:color .15s}
+.remove-row-btn:hover{color:var(--red)}
+.export-row{display:flex;gap:12px;margin-top:18px}
+.export-btn{flex:1;padding:12px;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s}
+.export-csv{background:#d1fae5;color:#065f46}
+.export-csv:hover{background:#a7f3d0}
+.export-pdf{background:var(--brand);color:#fff}
+.export-pdf:hover{background:var(--brand2)}
+.export-btn svg{width:18px;height:18px}
+
+/* LOAD MORE */
+.load-more-wrap{text-align:center;margin:28px 0}
+.load-more-btn{padding:11px 32px;background:var(--brand);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s}
+.load-more-btn:hover{background:var(--brand2)}
+.empty-state{text-align:center;padding:80px 20px;grid-column:1/-1}
+.empty-state svg{width:64px;height:64px;color:#cbd5e1;margin:0 auto 16px;display:block}
+.empty-state h3{font-size:18px;color:var(--muted);margin-bottom:8px}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--brand);color:#fff;padding:12px 24px;border-radius:24px;font-size:14px;font-weight:500;z-index:999;transition:transform .3s;box-shadow:0 4px 20px rgba(0,0,0,.2)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* NAV BUTTONS (slideshow) */
+.modal-nav-btn{background:none;border:none;cursor:pointer;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--muted);transition:background .15s;flex-shrink:0}
+.modal-nav-btn:hover{background:var(--bg);color:var(--brand)}
+.modal-nav-btn:disabled{opacity:.3;cursor:default}
+
+/* VIEW TOGGLE */
+.view-toggle{display:flex;gap:2px;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:3px}
+.view-btn{background:none;border:none;cursor:pointer;width:32px;height:32px;border-radius:5px;display:flex;align-items:center;justify-content:center;color:var(--muted);transition:all .15s}
+.view-btn:hover{background:var(--card);color:var(--brand)}
+.view-btn.active{background:var(--brand);color:#fff}
+
+/* LIST TABLE */
+.fabric-list-table{width:100%;border-collapse:collapse;font-size:13px}
+.fabric-list-table th{background:var(--brand);color:#fff;padding:10px 14px;text-align:left;font-weight:600;font-size:12px}
+.fabric-list-table td{padding:9px 14px;border-bottom:1px solid var(--border)}
+.fabric-list-table tr:hover td{background:#f0f4fa;cursor:pointer}
+.fabric-list-table .list-design{font-weight:700;color:var(--brand)}
+.list-sel-btn{padding:5px 12px;border-radius:6px;border:1.5px solid var(--border);background:none;font-size:12px;cursor:pointer;white-space:nowrap;transition:all .15s}
+.list-sel-btn:hover{background:var(--brand);color:#fff;border-color:var(--brand)}
+.list-sel-btn.sel-active{background:#fee2e2;color:var(--red);border-color:var(--red)}
+
+@media(max-width:900px){
+  .sidebar{width:100%;position:static;min-width:unset;border-right:none;border-bottom:1px solid var(--border)}
+  .main-content{margin-left:0}
+  .app-body{flex-direction:column}
+  .detail-img{height:clamp(220px,50vh,400px)}
+}
+</style>
+</head>
+<body>
+<!-- LOADING SCREEN -->
+<div id="loadingScreen" style="position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:14px">
+  <svg width="56" height="56" viewBox="0 0 56 56" style="animation:spin .9s linear infinite"><circle cx="28" cy="28" r="22" fill="none" stroke="var(--border)" stroke-width="5"/><path d="M28 6 a22 22 0 0 1 22 22" fill="none" stroke="var(--brand)" stroke-width="5" stroke-linecap="round"/></svg>
+  <div style="font-size:17px;font-weight:700;color:var(--brand)">Loading Fabric Catalogue…</div>
+  <div style="font-size:13px;color:var(--muted)" id="loadMsg">Reading latest data from file</div>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+
+
+<header>
+  <div class="header-logo">
+    <img src="https://threadsandsew.com/wp-content/uploads/2026/01/TS-logo-2.svg" alt="T&amp;S"
+         onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+    <span style="display:none;font-size:16px;font-weight:800;color:#fff">T&amp;S</span>
+    <div>
+      <div style="font-size:15px;font-weight:700">Fabric Catalogue</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.6)">Threads &amp; Sew</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="results-count" id="resultsCount">Loading…</span>
+    <button class="cart-btn" onclick="openCart()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+      <span id="cartLabel">0 Selected</span>
+    </button>
+  </div>
+</header>
+
+<div class="app-body">
+  <aside class="sidebar">
+    <div class="search-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="searchInput" placeholder="Search design or colour…" oninput="applyFilters()">
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Pattern</h3>
+      <div class="chip-group" id="patternChips">
+        <span class="chip active" data-val="">All</span>
+        <span class="chip" data-val="Plain">Plain</span>
+        <span class="chip" data-val="Stripe">Stripe</span>
+        <span class="chip" data-val="Check">Check</span>
+        <span class="chip" data-val="Printed">Printed</span>
+        <span class="chip" data-val="Self Plain">Self Plain</span>
+        <span class="chip" data-val="Self Stripe">Self Stripe</span>
+        <span class="chip" data-val="Self Check">Self Check</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Fabric Content</h3>
+      <div class="chip-group" id="contentChips">
+        <span class="chip active" data-val="">All</span>
+        <span class="chip" data-val="CVC">CVC</span>
+        <span class="chip" data-val="100% Cotton">100% Cotton</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Category</h3>
+      <div class="chip-group" id="categoryChips">
+        <span class="chip active" data-val="">All</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Min Available Stock</h3>
+      <div class="range-wrap">
+        <label>Minimum available (metres)</label>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <input type="number" id="stockNumInput" class="stock-num" min="0" value="0" placeholder="0"
+                 oninput="document.getElementById('stockRange').value=Math.min(this.value,2000);applyFilters()">
+          <span style="font-size:12px;color:var(--muted)">m</span>
+        </div>
+        <input type="range" id="stockRange" min="0" max="2000" step="10" value="0"
+               oninput="document.getElementById('stockNumInput').value=this.value;applyFilters()">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:5px;margin-top:2px">
+        <label class="filter-check">
+          <input type="radio" name="imgFilter" id="imgAll" value="all" checked onchange="applyFilters()">
+          <span>All fabrics</span>
+        </label>
+        <label class="filter-check">
+          <input type="radio" name="imgFilter" id="imgWith" value="with" onchange="applyFilters()">
+          <span>With images only</span>
+        </label>
+        <label class="filter-check">
+          <input type="radio" name="imgFilter" id="imgWithout" value="without" onchange="applyFilters()">
+          <span>Without images only</span>
+        </label>
+      </div>
+      <label class="filter-check">
+        <input type="checkbox" id="showInStock" onchange="applyFilters()">
+        <span>Only in stock (available &gt; 0)</span>
+      </label>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Card Image Size</h3>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+        <input type="range" id="imgSizeRange" min="120" max="420" step="20" value="380"
+               oninput="adjustImageSize(this.value)" style="flex:1;accent-color:var(--brand2)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="21" height="21"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button onclick="setSize(120)" class="size-preset">XS</button>
+        <button onclick="setSize(180)" class="size-preset">S</button>
+        <button onclick="setSize(240)" class="size-preset">M</button>
+        <button onclick="setSize(300)" class="size-preset">L</button>
+        <button onclick="setSize(380)" class="size-preset active">XL</button>
+      </div>
+    </div>
+
+    <button class="clear-btn" onclick="clearFilters()">&#x2715; Clear All Filters</button>
+  </aside>
+
+  <main class="main-content">
+    <div class="grid-header">
+      <h2 id="gridTitle">All Fabrics</h2>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="view-toggle">
+          <button id="viewGridBtn" class="view-btn active" onclick="setViewMode('grid')" title="Grid view">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          </button>
+          <button id="viewListBtn" class="view-btn" onclick="setViewMode('list')" title="List view (no images)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+        </div>
+        <select onchange="sortFabrics(this.value)" style="border:1.5px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;outline:none;cursor:pointer">
+          <option value="design">Sort: Design Code</option>
+          <option value="stock-desc">Stock: High to Low</option>
+          <option value="stock-asc">Stock: Low to High</option>
+          <option value="color">Sort: Colour</option>
+        </select>
+      </div>
+    </div>
+    <div class="fabric-grid" id="fabricGrid"></div>
+    <div class="load-more-wrap" id="loadMoreWrap" style="display:none">
+      <button class="load-more-btn" onclick="loadMore()">Load More Fabrics</button>
+    </div>
+  </main>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-backdrop detail-modal" id="detailModal" onclick="closeOnBackdrop(event,'detailModal')">
+  <div class="modal" style="max-width:1100px;width:96vw;max-height:95vh">
+    <div class="modal-header" style="gap:6px">
+      <button class="modal-nav-btn" id="detailPrev" onclick="detailNav(-1)" title="Previous fabric">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20"><polyline points="15,18 9,12 15,6"/></svg>
+      </button>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;min-width:0">
+        <h2 id="detailTitle" style="font-size:17px;text-align:center">Fabric Details</h2>
+        <span id="detailCounter" style="font-size:11px;color:var(--muted)">1 / 1</span>
+      </div>
+      <button class="modal-nav-btn" id="detailNext" onclick="detailNav(1)" title="Next fabric">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20"><polyline points="9,18 15,12 9,6"/></svg>
+      </button>
+      <button class="modal-close" onclick="closeModal('detailModal')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div id="detailImg" class="detail-img"></div>
+      <div id="detailInfo" class="detail-info"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CART MODAL -->
+<div class="modal-backdrop" id="cartModal" onclick="closeOnBackdrop(event,'cartModal')">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <h2>Selected Fabrics</h2>
+      <button class="modal-close" onclick="closeModal('cartModal')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div id="cartList"></div>
+      <button class="proceed-btn" id="proceedBtn" onclick="openOrder()" disabled>Create Shirt Order &rarr;</button>
+    </div>
+  </div>
+</div>
+
+<!-- ORDER MODAL -->
+<div class="modal-backdrop order-modal" id="orderModal" onclick="closeOnBackdrop(event,'orderModal')">
+  <div class="modal" style="max-width:920px;width:96vw">
+    <div class="modal-header">
+      <h2>&#128203; New Shirt Order</h2>
+      <button class="modal-close" onclick="closeModal('orderModal')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-section-title">Client Details</div>
+      <div class="form-row">
+        <div class="form-group"><label>CLIENT NAME *</label><input type="text" id="clientName" placeholder="Full name"></div>
+        <div class="form-group"><label>TELEPHONE</label><input type="tel" id="clientTel" placeholder="+44…"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>EMAIL</label><input type="email" id="clientEmail" placeholder="client@example.com"></div>
+        <div class="form-group"><label>WEBSITE</label><input type="text" id="clientWebsite" placeholder="www.example.com"></div>
+      </div>
+      <div class="form-row single">
+        <div class="form-group"><label>ADDRESS</label><input type="text" id="clientAddress" placeholder="Street, City, Country"></div>
+      </div>
+
+      <div class="form-section-title">Order Items <span style="font-size:11px;font-weight:400;color:var(--muted)">(click fabric code to view swatch)</span></div>
+      <div class="order-table-wrap">
+        <table class="order-table">
+          <thead>
+            <tr>
+              <th style="min-width:110px">Fabric Code</th>
+              <th>Fit</th>
+              <th>14"</th><th>14.5"</th><th>15"</th><th>15.5"</th>
+              <th>16"</th><th>16.5"</th><th>17"</th><th>17.5"</th>
+              <th>18"</th><th>18.5"</th>
+              <th>Total Shirts</th>
+              <th>Available</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="orderTableBody"></tbody>
+        </table>
+      </div>
+
+      <div class="form-section-title">Additional Instructions</div>
+      <div class="form-row single">
+        <div class="form-group">
+          <textarea id="orderInstructions" placeholder="Special instructions, notes or requirements…" rows="3"></textarea>
+        </div>
+      </div>
+
+      <div class="export-row">
+        <button class="export-btn export-csv" onclick="exportCSV()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+          Export as CSV
+        </button>
+        <button class="export-btn export-pdf" onclick="exportPDF()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg>
+          Export as PDF
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FABRIC PREVIEW (nested over order form) -->
+<div class="modal-backdrop preview-modal" id="fabricPreviewModal" onclick="closeOnBackdrop(event,'fabricPreviewModal')">
+  <div class="modal" style="max-width:860px;width:94vw;max-height:90vh;overflow:hidden">
+    <div class="modal-header">
+      <h2 id="previewTitle">Fabric Preview</h2>
+      <button class="modal-close" onclick="closeModal('fabricPreviewModal')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body preview-body">
+      <div id="previewImg" class="preview-img"></div>
+      <div id="previewInfo" class="preview-info"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let FABRIC_DATA = [];
+const SIZES = [14,14.5,15,15.5,16,16.5,17,17.5,18,18.5];
+const METRES_PER_SHIRT = 1.75;
+const PAGE_SIZE = 40;
+
+let filtered = [], displayCount = PAGE_SIZE, selected = new Set(), sortMode = 'design';
+let detailIdx = 0, viewMode = 'grid';
+// Zoom state for detail image
+let dzScale = 1, dzX = 0, dzY = 0, dzDragging = false, dzStartX = 0, dzStartY = 0;
+
+// ── HELPERS ──────────────────────────────────────────────────
+function metresToShirts(m){ return Math.floor(m / METRES_PER_SHIRT); }
+function stockLabel(s){
+  if(s <= 0) return 'Out of Stock';
+  const sh = metresToShirts(s);
+  return s.toLocaleString('en',{maximumFractionDigits:1}) + ' m / ' + sh.toLocaleString() + ' shirts';
+}
+function stockClass(s){ return s<=0?'stock-zero':s<50?'stock-low':s<200?'stock-mid':'stock-high'; }
+function encodeImgPath(p){ return p.split('/').map(encodeURIComponent).join('/'); }
+function getActiveChip(id){ const c=document.querySelector('#'+id+' .chip.active'); return c?c.dataset.val:''; }
+
+// ── INIT ─────────────────────────────────────────────────────
+function init(){
+  const cats=[...new Set(FABRIC_DATA.map(d=>d.category).filter(c=>c&&c!=='Other'))].sort();
+  const cw=document.getElementById('categoryChips');
+  cats.forEach(cat=>{
+    const s=document.createElement('span');
+    s.className='chip'; s.dataset.val=cat; s.textContent=cat; cw.appendChild(s);
+  });
+  document.querySelectorAll('.chip-group').forEach(g=>{
+    g.addEventListener('click',e=>{
+      const c=e.target.closest('.chip'); if(!c) return;
+      g.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));
+      c.classList.add('active'); applyFilters();
+    });
+  });
+  applyFilters();
+}
+
+// ── FILTERS ──────────────────────────────────────────────────
+function applyFilters(){
+  const q=document.getElementById('searchInput').value.toLowerCase().trim();
+  const pat=getActiveChip('patternChips');
+  const cont=getActiveChip('contentChips');
+  const cat=getActiveChip('categoryChips');
+  const minStock=parseInt(document.getElementById('stockNumInput').value)||0;
+  const imgFilter=document.querySelector('input[name="imgFilter"]:checked')?.value||'all';
+  const onlyIn=document.getElementById('showInStock').checked;
+
+  filtered=FABRIC_DATA.filter(d=>{
+    if(q && !d.design.toLowerCase().includes(q) && !d.color.toLowerCase().includes(q)) return false;
+    if(pat && d.pattern!==pat) return false;
+    if(cont && d.content!==cont) return false;
+    if(cat && d.category!==cat) return false;
+    if(d.availableStock<minStock) return false;
+    if(imgFilter==='with' && !d.imagePath) return false;
+    if(imgFilter==='without' && d.imagePath) return false;
+    if(onlyIn && d.availableStock<=0) return false;
+    return true;
+  });
+  sortData(); displayCount=PAGE_SIZE; renderGrid();
+  const n=filtered.length;
+  document.getElementById('resultsCount').textContent=n+' fabrics';
+  document.getElementById('gridTitle').textContent=n+' Fabric'+(n!==1?'s':'')+' Found';
+}
+
+function sortData(){
+  if(sortMode==='design') filtered.sort((a,b)=>a.design.localeCompare(b.design));
+  else if(sortMode==='stock-desc') filtered.sort((a,b)=>b.availableStock-a.availableStock);
+  else if(sortMode==='stock-asc') filtered.sort((a,b)=>a.availableStock-b.availableStock);
+  else if(sortMode==='color') filtered.sort((a,b)=>a.color.localeCompare(b.color));
+}
+function sortFabrics(v){ sortMode=v; sortData(); renderGrid(); }
+
+function clearFilters(){
+  document.getElementById('searchInput').value='';
+  document.getElementById('stockRange').value=0;
+  document.getElementById('stockNumInput').value=0;
+  document.getElementById('imgAll').checked=true;
+  document.getElementById('showInStock').checked=false;
+  document.querySelectorAll('.chip-group').forEach(g=>
+    g.querySelectorAll('.chip').forEach((c,i)=>c.classList.toggle('active',i===0))
+  );
+  applyFilters();
+}
+
+// ── VIEW MODE ─────────────────────────────────────────────────
+function setViewMode(mode) {
+  viewMode = mode;
+  document.getElementById('viewGridBtn').classList.toggle('active', mode === 'grid');
+  document.getElementById('viewListBtn').classList.toggle('active', mode === 'list');
+  const grid = document.getElementById('fabricGrid');
+  if (mode === 'grid') {
+    grid.className = 'fabric-grid';
+  } else {
+    grid.className = 'fabric-list';
+    grid.style.display = 'block';
+  }
+  renderGrid();
+}
+
+// ── RENDER GRID ───────────────────────────────────────────────
+function renderGrid(){
+  const grid = document.getElementById('fabricGrid');
+  const slice = filtered.slice(0, displayCount);
+  if (!filtered.length) {
+    grid.innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg><h3>No fabrics found</h3><p>Try adjusting your filters</p></div>`;
+    document.getElementById('loadMoreWrap').style.display = 'none';
+    return;
+  }
+  if (viewMode === 'list') {
+    grid.innerHTML = `<table class="fabric-list-table">
+      <thead><tr>
+        <th style="min-width:110px">Design Code</th>
+        <th>Colour</th>
+        <th>Category</th>
+        <th>Pattern</th>
+        <th>Content</th>
+        <th>Available Stock</th>
+        <th style="min-width:110px"></th>
+      </tr></thead>
+      <tbody>${slice.map(renderListRow).join('')}</tbody>
+    </table>`;
+  } else {
+    grid.innerHTML = slice.map(renderCard).join('');
+    initLazyLoad();
+  }
+  document.getElementById('loadMoreWrap').style.display = displayCount < filtered.length ? 'block' : 'none';
+}
+function loadMore() { displayCount += PAGE_SIZE; renderGrid(); }
+
+function renderListRow(d) {
+  const sel = selected.has(d.design);
+  return `<tr data-design="${d.design}">
+    <td><span class="list-design">${d.design}</span></td>
+    <td>${d.color || '—'}</td>
+    <td>${d.category || '—'}</td>
+    <td>${d.pattern || d.style || '—'}</td>
+    <td>${d.content || '—'}</td>
+    <td><span class="stock-pill ${stockClass(d.availableStock)}">${stockLabel(d.availableStock)}</span></td>
+    <td>
+      <button class="list-sel-btn${sel ? ' sel-active' : ''}" data-action="toggle" data-design="${d.design}">
+        ${sel ? '✓ Remove' : '+ Add to Order'}
+      </button>
+    </td>
+  </tr>`;
+}
+
+function renderCard(d) {
+  const sel = selected.has(d.design);
+  const ph = `<div class="card-img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg><span>No Image</span></div>`;
+  const imgHtml = d.imagePath
+    ? `<div class="img-shimmer"></div><img class="lazy-img" data-src="${encodeImgPath(d.imagePath)}" alt="${d.design}">`
+    : ph;
+  const chk = sel ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20,6 9,17 4,12"/></svg>` : '';
+  return `
+    <div class="fabric-card${sel ? ' selected' : ''}" data-design="${d.design}">
+      <div class="card-img-wrap">
+        ${imgHtml}
+        <span class="cat-badge">${d.category}</span>
+        <span class="sel-check">${chk}</span>
+      </div>
+      <div class="card-body">
+        <div class="card-design">${d.design}</div>
+        <div class="card-color">${d.color}</div>
+        <div class="card-meta">
+          <span class="stock-pill ${stockClass(d.availableStock)}">${stockLabel(d.availableStock)}</span>
+          <span class="card-style">${d.pattern || d.style || ''}</span>
+        </div>
+        <button class="add-btn${sel ? ' remove' : ''}" data-action="toggle" data-design="${d.design}">
+          ${sel ? '&#10003; Remove from Order' : '+ Add to Order'}
+        </button>
+      </div>
+    </div>`;
+}
+
+// Event delegation for fabric grid — handles grid + list modes
+document.getElementById('fabricGrid').addEventListener('click', function(e) {
+  if (viewMode === 'list') {
+    const toggleBtn = e.target.closest('[data-action="toggle"]');
+    if (toggleBtn) { e.stopPropagation(); toggleSelect(toggleBtn.dataset.design); return; }
+    const row = e.target.closest('tr[data-design]');
+    if (row) openDetail(row.dataset.design);
+    return;
+  }
+  const card = e.target.closest('.fabric-card');
+  if (!card) return;
+  const design = card.dataset.design;
+  if (e.target.closest('[data-action="toggle"]')) {
+    e.stopPropagation();
+    toggleSelect(design);
+  } else if (e.target.closest('.card-img-wrap') || e.target.closest('.card-body')) {
+    openDetail(design);
+  }
+});
+
+// ── SELECT / CART ─────────────────────────────────────────────
+function toggleSelect(design) {
+  if (selected.has(design)) { selected.delete(design); showToast('Removed ' + design); }
+  else { selected.add(design); showToast('Added ' + design + ' to order'); }
+  updateCartBtn();
+  refreshCard(design);
+}
+function refreshCard(design) {
+  if (viewMode === 'list') {
+    const row = document.querySelector(`tr[data-design="${design}"]`);
+    if (row) { const d = FABRIC_DATA.find(f => f.design === design); if (d) row.outerHTML = renderListRow(d); }
+    return;
+  }
+  const card = document.querySelector(`[data-design="${design}"]`);
+  if (card) { const d = FABRIC_DATA.find(f => f.design === design); if (d) { card.outerHTML = renderCard(d); initLazyLoad(); } }
+}
+function updateCartBtn() { document.getElementById('cartLabel').textContent = selected.size + ' Selected'; }
+
+function openCart() {
+  const list = document.getElementById('cartList');
+  const btn = document.getElementById('proceedBtn');
+  if (!selected.size) {
+    list.innerHTML = `<div class="cart-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:48px;height:48px;color:#cbd5e1;display:block;margin:0 auto 12px">
+        <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+      </svg>
+      <p>No fabrics selected yet.<br>Click <b>+ Add to Order</b> on any fabric.</p></div>`;
+    btn.disabled = true;
+  } else {
+    const items = [...selected].map(c => FABRIC_DATA.find(f => f.design === c)).filter(Boolean);
+    list.innerHTML = items.map(d => {
+      const imgEl = d.imagePath
+        ? `<img src="${encodeImgPath(d.imagePath)}" alt="${d.design}">`
+        : `<div class="cart-item-ph"><svg viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" width="24" height="24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg></div>`;
+      return `<div class="cart-item" data-design="${d.design}">
+        ${imgEl}
+        <div class="cart-item-info">
+          <div class="cart-item-code">${d.design}</div>
+          <div class="cart-item-sub">${d.color} &middot; ${d.category} &middot; <b>${stockLabel(d.availableStock)}</b></div>
+        </div>
+        <button class="cart-item-remove" data-action="remove-cart" data-design="${d.design}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button></div>`;
+    }).join('');
+    btn.disabled = false;
+  }
+  openModal('cartModal');
+}
+document.getElementById('cartList').addEventListener('click', function(e) {
+  const btn = e.target.closest('[data-action="remove-cart"]');
+  if (btn) { removeFromCart(btn.dataset.design); }
+});
+function removeFromCart(design) {
+  selected.delete(design); updateCartBtn(); openCart(); refreshCard(design);
+}
+
+// ── DETAIL MODAL ──────────────────────────────────────────────
+function openDetail(design) {
+  const d = FABRIC_DATA.find(f => f.design === design);
+  if (!d) return;
+  detailIdx = filtered.findIndex(f => f.design === design);
+  if (detailIdx < 0) detailIdx = 0;
+  updateDetailNav();
+  document.getElementById('detailTitle').textContent = 'Fabric ' + d.design;
+  const imgEl = document.getElementById('detailImg');
+  imgEl.innerHTML = d.imagePath
+    ? `<img src="${encodeImgPath(d.imagePath)}" alt="${d.design}" style="width:100%;height:100%;object-fit:contain;background:#111;transform-origin:center center">`
+    : `<div class="detail-img-ph" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#e8edf5,#c8d3e5)"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg></div>`;
+  dzReset();
+
+  const sel = selected.has(design);
+  document.getElementById('detailInfo').innerHTML = `
+    <h3>${d.design}</h3>
+    <p class="subtitle">${d.category}</p>
+    <div class="detail-info-grid">
+      <div class="info-row"><span class="info-label">Colour</span><span class="info-value">${d.color || '—'}</span></div>
+      <div class="info-row"><span class="info-label">Pattern</span><span class="info-value">${d.pattern || d.style || '—'}</span></div>
+      <div class="info-row"><span class="info-label">Content</span><span class="info-value">${d.content}</span></div>
+      <div class="info-row"><span class="info-label">Brand</span><span class="info-value">${d.brand || '—'}</span></div>
+      <div class="info-row"><span class="info-label">Season</span><span class="info-value">${d.season || '—'}</span></div>
+      <div class="info-row"><span class="info-label">Actual Stock</span><span class="info-value">${d.actualStock.toLocaleString('en',{maximumFractionDigits:1})} m</span></div>
+      <div class="info-row" style="grid-column:1/-1">
+        <span class="info-label">Available Stock</span>
+        <span class="info-value" style="color:${d.availableStock > 0 ? 'var(--green)' : 'var(--red)'}">${stockLabel(d.availableStock)}</span>
+      </div>
+    </div>
+    <button class="detail-add-btn${sel ? ' remove' : ''}" id="detailAddBtn" data-design="${design}">
+      ${sel ? '&#10003; Remove from Order' : '+ Add to Order'}
+    </button>`;
+  openModal('detailModal');
+}
+
+// ── SLIDESHOW NAV ────────────────────────────────────────────
+function updateDetailNav() {
+  const total = filtered.length;
+  const counter = document.getElementById('detailCounter');
+  if (counter) counter.textContent = (detailIdx + 1) + ' / ' + total;
+  const prev = document.getElementById('detailPrev');
+  const next = document.getElementById('detailNext');
+  if (prev) prev.disabled = detailIdx <= 0;
+  if (next) next.disabled = detailIdx >= total - 1;
+}
+
+function detailNav(dir) {
+  const newIdx = detailIdx + dir;
+  if (newIdx < 0 || newIdx >= filtered.length) return;
+  openDetail(filtered[newIdx].design);
+}
+
+// ── ZOOM ─────────────────────────────────────────────────────
+function dzReset() {
+  dzScale = 1; dzX = 0; dzY = 0; dzDragging = false;
+  const img = document.querySelector('#detailImg img');
+  if (img) { img.style.transform = 'none'; img.style.cursor = 'zoom-in'; }
+}
+function dzApply() {
+  const img = document.querySelector('#detailImg img');
+  if (!img) return;
+  img.style.transform = 'translate(' + dzX + 'px,' + dzY + 'px) scale(' + dzScale + ')';
+  img.style.cursor = dzScale > 1 ? (dzDragging ? 'grabbing' : 'grab') : 'zoom-in';
+}
+
+document.getElementById('detailImg').addEventListener('wheel', function(e) {
+  if (!this.querySelector('img')) return;
+  e.preventDefault();
+  const delta = e.deltaY < 0 ? 1.15 : 0.87;
+  dzScale = Math.min(Math.max(dzScale * delta, 1), 6);
+  if (dzScale === 1) { dzX = 0; dzY = 0; }
+  dzApply();
+}, { passive: false });
+
+document.getElementById('detailImg').addEventListener('dblclick', function() {
+  if (!this.querySelector('img')) return;
+  if (dzScale > 1) { dzReset(); } else { dzScale = 2.5; dzApply(); }
+});
+
+document.getElementById('detailImg').addEventListener('mousedown', function(e) {
+  if (!this.querySelector('img') || dzScale <= 1) return;
+  e.preventDefault();
+  dzDragging = true; dzStartX = e.clientX - dzX; dzStartY = e.clientY - dzY;
+  dzApply();
+});
+document.addEventListener('mousemove', function(e) {
+  if (!dzDragging) return;
+  dzX = e.clientX - dzStartX; dzY = e.clientY - dzStartY;
+  dzApply();
+});
+document.addEventListener('mouseup', function() {
+  if (!dzDragging) return;
+  dzDragging = false;
+  const img = document.querySelector('#detailImg img');
+  if (img && dzScale > 1) img.style.cursor = 'grab';
+});
+
+// Touch pinch zoom
+(function() {
+  let touchDist = 0;
+  const el = document.getElementById('detailImg');
+  el.addEventListener('touchstart', function(e) {
+    if (e.touches.length === 2) {
+      const [a, b] = e.touches;
+      touchDist = Math.hypot(b.clientX-a.clientX, b.clientY-a.clientY);
+    }
+  }, { passive: true });
+  el.addEventListener('touchmove', function(e) {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      const [a, b] = e.touches;
+      const dist = Math.hypot(b.clientX-a.clientX, b.clientY-a.clientY);
+      if (touchDist > 0) {
+        dzScale = Math.min(Math.max(dzScale * (dist / touchDist), 1), 6);
+        if (dzScale === 1) { dzX = 0; dzY = 0; }
+        dzApply();
+      }
+      touchDist = dist;
+    }
+  }, { passive: false });
+})();
+
+// ── FABRIC PREVIEW (nested over order form) ────────────────────
+function openFabricPreview(design) {
+  const d = FABRIC_DATA.find(f => f.design === design);
+  if (!d) return;
+  document.getElementById('previewTitle').textContent = 'Fabric ' + d.design;
+  document.getElementById('previewImg').innerHTML = d.imagePath
+    ? `<img src="${encodeImgPath(d.imagePath)}" alt="${d.design}">`
+    : `<div class="preview-img-ph"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg></div>`;
+  document.getElementById('previewInfo').innerHTML = `
+    <h3>${d.design}</h3>
+    <p class="subtitle">${d.category}</p>
+    <div class="detail-info-grid">
+      <div class="info-row"><span class="info-label">Colour</span><span class="info-value">${d.color || '—'}</span></div>
+      <div class="info-row"><span class="info-label">Pattern</span><span class="info-value">${d.pattern || d.style || '—'}</span></div>
+      <div class="info-row"><span class="info-label">Content</span><span class="info-value">${d.content || '—'}</span></div>
+      <div class="info-row"><span class="info-label">Brand</span><span class="info-value">${d.brand || '—'}</span></div>
+      <div class="info-row"><span class="info-label">Season</span><span class="info-value">${d.season || '—'}</span></div>
+      <div class="info-row"><span class="info-label">Actual Stock</span><span class="info-value">${d.actualStock.toLocaleString('en',{maximumFractionDigits:1})} m</span></div>
+      <div class="info-row" style="grid-column:1/-1">
+        <span class="info-label">Available Stock</span>
+        <span class="info-value" style="color:${d.availableStock > 0 ? 'var(--green)' : 'var(--red)'}">${stockLabel(d.availableStock)}</span>
+      </div>
+    </div>`;
+  openModal('fabricPreviewModal');
+}
+
+document.getElementById('detailInfo').addEventListener('click', function(e) {
+  const btn = e.target.closest('#detailAddBtn');
+  if (!btn) return;
+  const design = btn.dataset.design;
+  if (selected.has(design)) { selected.delete(design); showToast('Removed ' + design); }
+  else { selected.add(design); showToast('Added ' + design + ' to order'); }
+  updateCartBtn();
+  const sel = selected.has(design);
+  btn.textContent = sel ? '✓ Remove from Order' : '+ Add to Order';
+  btn.className = 'detail-add-btn' + (sel ? ' remove' : '');
+  refreshCard(design);
+});
+
+// ── ORDER FORM ────────────────────────────────────────────────
+function openOrder() { closeModal('cartModal'); buildOrderTable(); openModal('orderModal'); }
+
+function buildOrderTable() {
+  const tbody = document.getElementById('orderTableBody');
+  const items = [...selected].map(c => FABRIC_DATA.find(f => f.design === c)).filter(Boolean);
+  tbody.innerHTML = items.map(d => {
+    const avSh = metresToShirts(d.availableStock);
+    const sizes = SIZES.map(() => `<td><input class="qty-input" type="number" min="0" value="" placeholder="0" onchange="recalcRow(this)"></td>`).join('');
+    return `<tr id="orow_${d.design}">
+      <td>
+        <button class="fabric-code-btn" data-design="${d.design}" title="View fabric swatch">${d.design}</button>
+        <br><span style="font-size:10px;color:var(--muted)">${d.color}</span>
+      </td>
+      <td><select class="fit-select"><option>Regular</option><option>Slim</option><option>Custom</option></select></td>
+      ${sizes}
+      <td class="row-total" id="total_${d.design}">0</td>
+      <td style="font-size:11px;color:var(--muted)" id="avail_${d.design}">${avSh} shirts</td>
+      <td><button class="remove-row-btn" data-design="${d.design}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 6 6 18M6 6l12 12"/></svg></button></td>
+    </tr>`;
+  }).join('');
+}
+
+// Event delegation for order table buttons
+document.getElementById('orderTableBody').addEventListener('click', function(e) {
+  const removeBtn = e.target.closest('.remove-row-btn');
+  const codeBtn = e.target.closest('.fabric-code-btn');
+  if (removeBtn) { removeFromOrder(removeBtn.dataset.design); }
+  else if (codeBtn) { openFabricPreview(codeBtn.dataset.design); }
+});
+
+function recalcRow(inp) {
+  const row = inp.closest('tr');
+  const total = [...row.querySelectorAll('.qty-input')].reduce((s, i) => s + (parseInt(i.value) || 0), 0);
+  const design = row.id.replace('orow_', '');
+  const totalEl = document.getElementById('total_' + design);
+  totalEl.textContent = total;
+  const d = FABRIC_DATA.find(f => f.design === design);
+  const avSh = d ? metresToShirts(d.availableStock) : 0;
+  if (total > avSh && avSh > 0) {
+    totalEl.style.color = 'var(--red)';
+    totalEl.title = 'Exceeds available! Max ' + avSh + ' shirts';
+    showToast('⚠️ ' + design + ': order (' + total + ') exceeds available shirts (' + avSh + ')');
+  } else {
+    totalEl.style.color = 'var(--brand)';
+    totalEl.title = '';
+  }
+}
+
+function validateOrder() {
+  const errors = [];
+  document.getElementById('orderTableBody').querySelectorAll('tr').forEach(row => {
+    const design = row.id.replace('orow_', '');
+    const d = FABRIC_DATA.find(f => f.design === design); if (!d) return;
+    const total = [...row.querySelectorAll('.qty-input')].reduce((s, i) => s + (parseInt(i.value) || 0), 0);
+    const avSh = metresToShirts(d.availableStock);
+    if (total > avSh) errors.push(design + ': ordered ' + total + ', max ' + avSh + ' shirts');
+  });
+  return errors;
+}
+
+function removeFromOrder(design) {
+  selected.delete(design); updateCartBtn();
+  document.getElementById('orow_' + design)?.remove();
+  refreshCard(design);
+}
+
+// ── CSV EXPORT ────────────────────────────────────────────────
+function exportCSV() {
+  const errs = validateOrder();
+  if (errs.length) { alert('⚠️ Order exceeds available stock for:\n\n' + errs.join('\n') + '\n\nPlease correct quantities first.'); return; }
+  const name = document.getElementById('clientName').value || 'Client';
+  const addr = document.getElementById('clientAddress').value || '';
+  const tel  = document.getElementById('clientTel').value || '';
+  const email= document.getElementById('clientEmail').value || '';
+  const web  = document.getElementById('clientWebsite').value || '';
+  const notes= document.getElementById('orderInstructions').value || '';
+  const date = new Date().toLocaleDateString('en-GB');
+  let csv = '"Threads & Sew - Shirt Order"\n';
+  csv += `"Date:","${date}"\n"Client Name:","${name}"\n"Address:","${addr}"\n"Telephone:","${tel}"\n"Email:","${email}"\n"Website:","${web}"\n\n`;
+  csv += '"#","Fabric Code","Colour","Category","Fit",' + SIZES.map(s => `"${s}"`).join(',') + ',"Total Shirts","Available Shirts"\n';
+  let i = 1;
+  document.getElementById('orderTableBody').querySelectorAll('tr').forEach(row => {
+    const design = row.id.replace('orow_', '');
+    const d = FABRIC_DATA.find(f => f.design === design); if (!d) return;
+    const fit = row.querySelector('.fit-select')?.value || '';
+    const qtys = [...row.querySelectorAll('.qty-input')].map(x => parseInt(x.value) || 0);
+    const total = qtys.reduce((a, b) => a + b, 0);
+    csv += `"${i++}","${design}","${d.color}","${d.category}","${fit}",${qtys.map(q => `"${q}"`).join(',')},"${total}","${metresToShirts(d.availableStock)}"\n`;
+  });
+  if (notes) csv += `\n"Instructions:","${notes}"\n`;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type: 'text/csv;charset=utf-8'}));
+  a.download = `TS_ShirtOrder_${name.replace(/[^a-z0-9]/gi,'_')}_${date.replace(/\//g,'-')}.csv`;
+  a.click(); showToast('CSV exported!');
+}
+
+// ── PDF EXPORT ────────────────────────────────────────────────
+async function exportPDF() {
+  const errs = validateOrder();
+  if (errs.length) { alert('⚠️ Order exceeds available stock for:\n\n' + errs.join('\n') + '\n\nPlease correct quantities first.'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const W = doc.internal.pageSize.getWidth();
+  const name  = document.getElementById('clientName').value || '—';
+  const addr  = document.getElementById('clientAddress').value || '—';
+  const tel   = document.getElementById('clientTel').value || '—';
+  const email = document.getElementById('clientEmail').value || '—';
+  const web   = document.getElementById('clientWebsite').value || '—';
+  const notes = document.getElementById('orderInstructions').value || '';
+  const date  = new Date().toLocaleDateString('en-GB');
+
+  doc.setFillColor(26, 46, 74); doc.rect(0, 0, W, 28, 'F');
+
+  // Logo
+  if (window.tsLogoDataUrl) {
+    doc.addImage(window.tsLogoDataUrl, 'PNG', 6, 3, 44, 22);
+  } else {
+    try {
+      const li = await new Promise((res, rej) => {
+        const im = new Image(); im.crossOrigin = 'anonymous';
+        im.onload = () => res(im); im.onerror = rej;
+        im.src = 'https://threadsandsew.com/wp-content/uploads/2026/01/TS-logo-2.svg';
+        setTimeout(rej, 4000);
+      });
+      const cv = document.createElement('canvas'); cv.width = 300; cv.height = 100;
+      cv.getContext('2d').drawImage(li, 0, 0, 300, 100);
+      window.tsLogoDataUrl = cv.toDataURL('image/png');
+      doc.addImage(window.tsLogoDataUrl, 'PNG', 6, 3, 44, 22);
+    } catch(e) {
+      doc.setTextColor(255,255,255); doc.setFontSize(13); doc.setFont('helvetica','bold');
+      doc.text('THREADS & SEW', 8, 18);
+    }
+  }
+
+  doc.setTextColor(255,255,255); doc.setFontSize(16); doc.setFont('helvetica','bold');
+  doc.text('SHIRT ORDER', W/2, 12, {align:'center'});
+  doc.setFontSize(9); doc.setFont('helvetica','normal');
+  doc.text('Date: ' + date, W-10, 12, {align:'right'});
+  doc.text('threadsandsew.com  |  info@threadsandsew.com', W/2, 20, {align:'center'});
+  doc.setFillColor(232,168,76); doc.rect(0,28,W,2,'F');
+
+  doc.setTextColor(26,46,74); doc.setFontSize(9); doc.setFont('helvetica','bold');
+  doc.text('CLIENT DETAILS', 10, 38);
+  [['Name:', name],['Address:', addr],['Telephone:', tel],['Email:', email],['Website:', web]].forEach(([l,v],i) => {
+    doc.setFont('helvetica','bold'); doc.text(l, 10, 45+i*5);
+    doc.setFont('helvetica','normal'); doc.text(v, 35, 45+i*5);
+  });
+  doc.setDrawColor(220,220,220); doc.line(10,72,W-10,72);
+
+  // Fetch fabric swatches as data URLs for PDF
+  const pdfImageMap = {};
+  await Promise.all([...selected].map(async design => {
+    const d = FABRIC_DATA.find(f => f.design === design);
+    if (!d || !d.imagePath) return;
+    try {
+      const blob = await fetch(encodeImgPath(d.imagePath)).then(r => r.blob());
+      await new Promise(res => {
+        const reader = new FileReader();
+        reader.onload = () => { pdfImageMap[design] = reader.result; res(); };
+        reader.onerror = res;
+        reader.readAsDataURL(blob);
+      });
+    } catch(e) {}
+  }));
+
+  const rows = [];
+  const rowDesigns = [];
+  let n = 1;
+  document.getElementById('orderTableBody').querySelectorAll('tr').forEach(row => {
+    const design = row.id.replace('orow_','');
+    const d = FABRIC_DATA.find(f => f.design === design); if (!d) return;
+    const fit = row.querySelector('.fit-select')?.value || '';
+    const qtys = [...row.querySelectorAll('.qty-input')].map(x => parseInt(x.value)||0);
+    rowDesigns.push(design);
+    rows.push([n++, '', design, d.color, d.category, fit, ...qtys, qtys.reduce((a,b)=>a+b,0), metresToShirts(d.availableStock)]);
+  });
+
+  doc.autoTable({
+    startY: 76,
+    head: [['#','Swatch','Fabric Code','Colour','Category','Fit',...SIZES.map(s=>s+'"'),'Total','Avail.']],
+    body: rows,
+    styles: {fontSize:8, cellPadding:2, halign:'center', textColor:[30,30,40], minCellHeight:20},
+    headStyles: {fillColor:[26,46,74], textColor:255, fontStyle:'bold'},
+    columnStyles: {
+      0:{cellWidth:7},
+      1:{cellWidth:20},
+      2:{cellWidth:22,fontStyle:'bold',halign:'left'},
+      3:{cellWidth:24,halign:'left'}, 4:{cellWidth:34,halign:'left'}, 5:{cellWidth:16},
+      16:{fontStyle:'bold',fillColor:[248,250,252]}, 17:{fontStyle:'bold',fillColor:[209,250,229]},
+    },
+    alternateRowStyles: {fillColor:[248,250,252]},
+    tableLineColor:[220,220,230], tableLineWidth:0.2,
+    didDrawCell: (data) => {
+      if (data.section === 'body' && data.column.index === 1) {
+        const imgUrl = pdfImageMap[rowDesigns[data.row.index]];
+        if (imgUrl) {
+          const fmt = imgUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+          try {
+            doc.addImage(imgUrl, fmt,
+              data.cell.x + 1, data.cell.y + 1,
+              data.cell.width - 2, data.cell.height - 2);
+          } catch(e) {}
+        }
+      }
+    },
+  });
+
+  const fY = doc.lastAutoTable.finalY + 6;
+  if (notes) {
+    doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(26,46,74);
+    doc.text('Instructions:', 10, fY);
+    doc.setFont('helvetica','normal'); doc.setTextColor(60,60,80);
+    doc.text(notes, 10, fY+5, {maxWidth: W-20});
+  }
+  const pH = doc.internal.pageSize.getHeight();
+  doc.setFillColor(26,46,74); doc.rect(0,pH-14,W,14,'F');
+  doc.setTextColor(200,210,220); doc.setFontSize(7.5); doc.setFont('helvetica','normal');
+  doc.text('Threads & Sew  |  82 Douglas Road, Hornchurch, RM11 1AR, UK  |  +44 7950 328498  |  info@threadsandsew.com', W/2, pH-7, {align:'center'});
+  doc.setTextColor(232,168,76); doc.text('www.threadsandsew.com', W/2, pH-3, {align:'center'});
+
+  doc.save(`TS_ShirtOrder_${name.replace(/[^a-z0-9]/gi,'_')}_${date.replace(/\//g,'-')}.pdf`);
+  showToast('PDF exported!');
+}
+
+// ── LAZY LOAD ─────────────────────────────────────────────────
+let lazyObs = null;
+function initLazyLoad() {
+  if (lazyObs) lazyObs.disconnect();
+  lazyObs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (!e.isIntersecting) return;
+      const img = e.target, src = img.dataset.src; if (!src) return;
+      img.src = src;
+      img.onload = () => { img.classList.add('loaded'); img.previousElementSibling?.classList.contains('img-shimmer') && img.previousElementSibling.remove(); };
+      img.onerror = () => { img.previousElementSibling?.classList.contains('img-shimmer') && img.previousElementSibling.remove(); };
+      lazyObs.unobserve(img);
+    });
+  }, { rootMargin: '250px 0px' });
+  document.querySelectorAll('.lazy-img').forEach(img => lazyObs.observe(img));
+}
+
+// ── IMAGE SIZE ─────────────────────────────────────────────────
+function adjustImageSize(val) {
+  val = parseInt(val);
+  document.documentElement.style.setProperty('--card-img-h', val + 'px');
+  document.documentElement.style.setProperty('--card-min-w', Math.max(150, Math.round(val * 1.1)) + 'px');
+  document.getElementById('imgSizeRange').value = val;
+  const map = {120:'XS',180:'S',240:'M',300:'L',380:'XL'};
+  const near = Object.keys(map).reduce((a,b) => Math.abs(b-val) < Math.abs(a-val) ? b : a);
+  document.querySelectorAll('.size-preset').forEach(b => b.classList.toggle('active', b.textContent === map[near]));
+}
+function setSize(v) { document.getElementById('imgSizeRange').value = v; adjustImageSize(v); }
+
+// ── MODALS ─────────────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.add('open'); document.body.style.overflow = 'hidden'; }
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+  // Only restore scrolling when no other modal is still open
+  if (!document.querySelector('.modal-backdrop.open')) document.body.style.overflow = '';
+}
+function closeOnBackdrop(e, id) { if (e.target === document.getElementById(id)) closeModal(id); }
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-backdrop.open').forEach(m => { m.classList.remove('open'); document.body.style.overflow = ''; });
+    return;
+  }
+  if (document.getElementById('detailModal').classList.contains('open')) {
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); detailNav(-1); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); detailNav(1);  }
+  }
+});
+
+// ── TOAST ──────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+// ── LOGO PRE-LOAD ──────────────────────────────────────────────
+window.tsLogoDataUrl = null;
+(function() {
+  const img = new Image(); img.crossOrigin = 'anonymous';
+  img.onload = function() {
+    try {
+      const cv = document.createElement('canvas'); cv.width = 300; cv.height = 100;
+      cv.getContext('2d').drawImage(img, 0, 0, 300, 100);
+      window.tsLogoDataUrl = cv.toDataURL('image/png');
+    } catch(e) {}
+  };
+  img.src = 'https://threadsandsew.com/wp-content/uploads/2026/01/TS-logo-2.svg';
+})();
+
+// ── DYNAMIC CSS ────────────────────────────────────────────────
+document.head.insertAdjacentHTML('beforeend', `<style>
+  .fabric-code-btn{background:none;border:none;cursor:pointer;color:var(--brand);font-weight:700;font-size:13px;text-decoration:underline dotted;padding:0}
+  .fabric-code-btn:hover{color:var(--brand2)}
+  .preview-modal{z-index:3000}
+  .preview-modal .modal{z-index:3001}
+  .preview-body{display:flex;flex-direction:row;align-items:stretch;padding:0;min-height:0}
+  .preview-img{width:52%;min-width:220px;background:#111;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden;min-height:320px}
+  .preview-img img{width:100%;height:100%;object-fit:contain;background:#111;display:block}
+  .preview-img-ph{width:100%;height:100%;min-height:320px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#e8edf5,#c8d3e5)}
+  .preview-info{flex:1;padding:22px 26px 26px;overflow-y:auto;max-height:calc(90vh - 60px)}
+  .preview-info h3{font-size:20px;font-weight:800;color:var(--brand);margin:0 0 4px}
+  .preview-info .subtitle{color:var(--muted);font-size:13px;margin-bottom:14px}
+  @media(max-width:580px){
+    .preview-body{flex-direction:column}
+    .preview-img{width:100%;min-height:200px}
+  }
+</style>`);
+
+// ── START ──────────────────────────────────────────────────────
+(async function loadAndInit() {
+  const screen   = document.getElementById('loadingScreen');
+  const loadMsg  = document.getElementById('loadMsg');
+  try {
+    loadMsg.textContent = 'Connecting to local server…';
+    const resp = await fetch('/api/data');
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({error: 'HTTP ' + resp.status}));
+      throw new Error(err.error || 'HTTP ' + resp.status);
+    }
+    loadMsg.textContent = 'Processing fabric data…';
+    FABRIC_DATA = await resp.json();
+    screen.style.display = 'none';
+    init();
+    setSize(380);
+  } catch (e) {
+    screen.innerHTML = `
+      <div style="text-align:center;max-width:460px;padding:36px 24px">
+        <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="1.5" style="margin-bottom:14px">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <h2 style="color:var(--brand);margin:0 0 10px">Could not load data</h2>
+        <p style="color:var(--text);margin:0 0 8px">Please open the catalogue by double-clicking:</p>
+        <code style="display:inline-block;background:var(--border);padding:7px 16px;border-radius:8px;font-size:14px;color:var(--brand);margin-bottom:16px">Start Catalogue.bat</code>
+        <p style="color:var(--muted);font-size:12px;margin:0">Do not open Fabric Catalogue.html directly in the browser.<br>The launcher starts a local server that reads fresh data.</p>
+        <p style="color:var(--red);font-size:11px;margin-top:12px">\${e.message}</p>
+      </div>`;
+  }
+})();
+</script>
+</body>
+</html>
