@@ -7,16 +7,16 @@ import openpyxl
 app = Flask(__name__)
 CORS(app)
 
-DROPBOX_EXCEL_LINK  = os.environ.get('DROPBOX_EXCEL_LINK', '')
-DROPBOX_ACCESS_TOKEN = os.environ.get('DROPBOX_ACCESS_TOKEN', '')
-DROPBOX_IMAGES_FOLDER = os.environ.get('DROPBOX_IMAGES_FOLDER', '/Available Fabric')
+DROPBOX_EXCEL_LINK    = os.environ.get('DROPBOX_EXCEL_LINK', '')
+DROPBOX_ACCESS_TOKEN  = os.environ.get('DROPBOX_ACCESS_TOKEN', '')
+DROPBOX_IMAGES_FOLDER = os.environ.get('DROPBOX_IMAGES_FOLDER', '/A (Stripe CVC) 20-May-26')
 
 BASE      = Path(__file__).parent
 XLSX_PATH = BASE / 'Raw_Data.xlsx'
 HTML_PATH = BASE / 'Fabric_Catalogue.html'
 
 FABRIC_DATA = []
-IMAGE_MAP   = {}   # design_code -> dropbox file path
+IMAGE_MAP   = {}
 READY       = False
 
 def dropbox_direct(url):
@@ -55,9 +55,7 @@ def to_float(v):
     try: return round(float(v or 0), 2)
     except: return 0.0
 
-# ── Dropbox API: list all files recursively in a folder ─────────
 def dropbox_list_all_images():
-    """Uses Dropbox API to recursively list every image file path in the folder."""
     if not DROPBOX_ACCESS_TOKEN:
         print("No Dropbox access token set")
         return {}
@@ -183,7 +181,6 @@ def api_data():
 
 @app.route('/api/img/<key>')
 def serve_img(key):
-    """Fetch a single image directly from Dropbox via API — no bulk download."""
     path = IMAGE_MAP.get(key.upper())
     if not path:
         return '', 404
