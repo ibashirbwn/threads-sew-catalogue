@@ -1,4 +1,4 @@
-import os, re, json, threading, mimetypes, requests, zipfile, io
+import os, re, json, threading, requests
 from pathlib import Path
 from flask import Flask, jsonify, send_file, Response
 from flask_cors import CORS
@@ -8,14 +8,15 @@ app = Flask(__name__)
 CORS(app)
 
 DROPBOX_EXCEL_LINK  = os.environ.get('DROPBOX_EXCEL_LINK', '')
-DROPBOX_IMAGES_LINK = os.environ.get('DROPBOX_IMAGES_LINK', '')
+DROPBOX_ACCESS_TOKEN = os.environ.get('DROPBOX_ACCESS_TOKEN', '')
+DROPBOX_IMAGES_FOLDER = os.environ.get('DROPBOX_IMAGES_FOLDER', '/Available Fabric')
 
 BASE      = Path(__file__).parent
 XLSX_PATH = BASE / 'Raw_Data.xlsx'
 HTML_PATH = BASE / 'Fabric_Catalogue.html'
 
 FABRIC_DATA = []
-IMAGE_MAP   = {}
+IMAGE_MAP   = {}   # design_code -> dropbox file path
 READY       = False
 
 def dropbox_direct(url):
@@ -24,6 +25,7 @@ def dropbox_direct(url):
     if 'dl=' not in url:
         url += ('&' if '?' in url else '?') + 'dl=1'
     url = re.sub(r'[?&]st=[^&]+', '', url)
+    url = re.sub(r'[?&]e=\d+', '', url)
     url = url.replace('www.dropbox.com', 'dl.dropboxusercontent.com')
     return url
 
@@ -53,36 +55,56 @@ def to_float(v):
     try: return round(float(v or 0), 2)
     except: return 0.0
 
-def get_image_map():
-    if not DROPBOX_IMAGES_LINK:
+# ── Dropbox API: list all files recursively in a folder ─────────
+def dropbox_list_all_images():
+    """Uses Dropbox API to recursively list every image file path in the folder."""
+    if not DROPBOX_ACCESS_TOKEN:
+        print("No Dropbox access token set")
         return {}
+
+    headers = {
+        'Authorization': f'Bearer {DROPBOX_ACCESS_TOKEN}',
+        'Content-Type': 'application/json',
+    }
+    img_exts = {'.jpg', '.jpeg', '.png', '.webp', '.gif'}
+    image_map = {}
+
+    url = 'https://api.dropboxapi.com/2/files/list_folder'
+    payload = {
+        'path': DROPBOX_IMAGES_FOLDER,
+        'recursive': True,
+        'limit': 2000,
+    }
+
     try:
-        print("Fetching images zip...")
-        r = requests.get(dropbox_direct(DROPBOX_IMAGES_LINK), timeout=120, stream=True)
-        r.raise_for_status()
-        data = b''
-        for chunk in r.iter_content(65536):
-            data += chunk
-        zf = zipfile.ZipFile(io.BytesIO(data))
-        img_exts = {'.jpg','.jpeg','.png','.webp','.gif'}
-        image_map = {}
-        for name in zf.namelist():
-            p = Path(name)
-            if p.suffix.lower() not in img_exts:
-                continue
-            stem = p.stem
-            while True:
-                s2, e2 = os.path.splitext(stem)
-                if e2.lower() in img_exts: stem = s2
-                else: break
-            key = stem.upper().strip()
-            if key not in image_map:
-                image_map[key] = name
-        print(f"Image map: {len(image_map)} entries")
-        return image_map
+        while True:
+            r = requests.post(url, headers=headers, json=payload, timeout=60)
+            r.raise_for_status()
+            data = r.json()
+            for entry in data.get('entries', []):
+                if entry.get('.tag') != 'file':
+                    continue
+                name = entry['name']
+                p = Path(name)
+                if p.suffix.lower() not in img_exts:
+                    continue
+                stem = p.stem
+                while True:
+                    s2, e2 = os.path.splitext(stem)
+                    if e2.lower() in img_exts: stem = s2
+                    else: break
+                key = stem.upper().strip()
+                if key not in image_map:
+                    image_map[key] = entry['path_lower']
+            if data.get('has_more'):
+                url = 'https://api.dropboxapi.com/2/files/list_folder/continue'
+                payload = {'cursor': data['cursor']}
+            else:
+                break
+        print(f"Dropbox API: found {len(image_map)} images")
     except Exception as e:
-        print(f"Image map error: {e}")
-        return {}
+        print(f"Dropbox list error: {e}")
+    return image_map
 
 def read_fabric_data(image_map):
     if not XLSX_PATH.exists(): return []
@@ -136,9 +158,13 @@ def background_startup():
         r.raise_for_status()
         XLSX_PATH.write_bytes(r.content)
         print(f"Excel: {len(r.content):,} bytes")
-        IMAGE_MAP = get_image_map()
+
+        print("Listing images from Dropbox API...")
+        IMAGE_MAP = dropbox_list_all_images()
+
         FABRIC_DATA = read_fabric_data(IMAGE_MAP)
-        print(f"Ready! {len(FABRIC_DATA)} records, {len(IMAGE_MAP)} images")
+        matched = sum(1 for r in FABRIC_DATA if r['imagePath'])
+        print(f"Ready! {len(FABRIC_DATA)} records, {matched} with images")
     except Exception as e:
         print(f"Startup error: {e}")
     finally:
@@ -157,24 +183,31 @@ def api_data():
 
 @app.route('/api/img/<key>')
 def serve_img(key):
-    fname = IMAGE_MAP.get(key.upper())
-    if not fname:
+    """Fetch a single image directly from Dropbox via API — no bulk download."""
+    path = IMAGE_MAP.get(key.upper())
+    if not path:
         return '', 404
     try:
-        r = requests.get(dropbox_direct(DROPBOX_IMAGES_LINK), timeout=120, stream=True)
-        data = b''
-        for chunk in r.iter_content(65536): data += chunk
-        zf = zipfile.ZipFile(io.BytesIO(data))
-        img_data = zf.read(fname)
-        ext = Path(fname).suffix.lower()
-        mime = {'.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp'}.get(ext,'image/jpeg')
-        return Response(img_data, mimetype=mime)
+        headers = {
+            'Authorization': f'Bearer {DROPBOX_ACCESS_TOKEN}',
+            'Dropbox-API-Arg': json.dumps({'path': path}),
+        }
+        r = requests.post(
+            'https://content.dropboxapi.com/2/files/download',
+            headers=headers, timeout=30
+        )
+        r.raise_for_status()
+        ext = Path(path).suffix.lower()
+        mime = {'.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp','.gif':'image/gif'}.get(ext,'image/jpeg')
+        return Response(r.content, mimetype=mime, headers={'Cache-Control': 'public, max-age=86400'})
     except Exception as e:
-        return str(e), 500
+        print(f"Image fetch error for {key}: {e}")
+        return '', 500
 
 @app.route('/api/status')
 def api_status():
-    return jsonify({'ready': READY, 'records': len(FABRIC_DATA), 'images': len(IMAGE_MAP)})
+    matched = sum(1 for r in FABRIC_DATA if r['imagePath'])
+    return jsonify({'ready': READY, 'records': len(FABRIC_DATA), 'images_total': len(IMAGE_MAP), 'images_matched': matched})
 
 @app.route('/api/refresh')
 def api_refresh():
