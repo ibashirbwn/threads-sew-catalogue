@@ -1,4 +1,4 @@
-import os, re, json, threading, requests
+import os, re, json, requests
 from pathlib import Path
 from flask import Flask, jsonify, send_file, Response
 from flask_cors import CORS
@@ -17,7 +17,6 @@ HTML_PATH = BASE / 'Fabric_Catalogue.html'
 
 FABRIC_DATA = []
 IMAGE_MAP   = {}
-READY       = False
 
 def dropbox_direct(url):
     url = url.strip()
@@ -54,55 +53,6 @@ def derive_meta(design):
 def to_float(v):
     try: return round(float(v or 0), 2)
     except: return 0.0
-
-def dropbox_list_all_images():
-    if not DROPBOX_ACCESS_TOKEN:
-        print("No Dropbox access token set")
-        return {}
-
-    headers = {
-        'Authorization': f'Bearer {DROPBOX_ACCESS_TOKEN}',
-        'Content-Type': 'application/json',
-    }
-    img_exts = {'.jpg', '.jpeg', '.png', '.webp', '.gif'}
-    image_map = {}
-
-    url = 'https://api.dropboxapi.com/2/files/list_folder'
-    payload = {
-        'path': DROPBOX_IMAGES_FOLDER,
-        'recursive': True,
-        'limit': 2000,
-    }
-
-    try:
-        while True:
-            r = requests.post(url, headers=headers, json=payload, timeout=60)
-            r.raise_for_status()
-            data = r.json()
-            for entry in data.get('entries', []):
-                if entry.get('.tag') != 'file':
-                    continue
-                name = entry['name']
-                p = Path(name)
-                if p.suffix.lower() not in img_exts:
-                    continue
-                stem = p.stem
-                while True:
-                    s2, e2 = os.path.splitext(stem)
-                    if e2.lower() in img_exts: stem = s2
-                    else: break
-                key = stem.upper().strip()
-                if key not in image_map:
-                    image_map[key] = entry['path_lower']
-            if data.get('has_more'):
-                url = 'https://api.dropboxapi.com/2/files/list_folder/continue'
-                payload = {'cursor': data['cursor']}
-            else:
-                break
-        print(f"Dropbox API: found {len(image_map)} images")
-    except Exception as e:
-        print(f"Dropbox list error: {e}")
-    return image_map
 
 def read_fabric_data(image_map):
     if not XLSX_PATH.exists(): return []
@@ -148,27 +98,60 @@ def read_fabric_data(image_map):
         })
     return records
 
-def background_startup():
-    global FABRIC_DATA, IMAGE_MAP, READY
+def dropbox_list_images():
+    if not DROPBOX_ACCESS_TOKEN:
+        return {}
+    headers = {
+        'Authorization': f'Bearer {DROPBOX_ACCESS_TOKEN}',
+        'Content-Type': 'application/json',
+    }
+    img_exts = {'.jpg', '.jpeg', '.png', '.webp', '.gif'}
+    image_map = {}
+    url = 'https://api.dropboxapi.com/2/files/list_folder'
+    payload = {'path': DROPBOX_IMAGES_FOLDER, 'recursive': True, 'limit': 2000}
     try:
-        print("Downloading Excel...")
-        r = requests.get(dropbox_direct(DROPBOX_EXCEL_LINK), timeout=60)
+        r = requests.post(url, headers=headers, json=payload, timeout=10)
         r.raise_for_status()
-        XLSX_PATH.write_bytes(r.content)
-        print(f"Excel: {len(r.content):,} bytes")
-
-        print("Listing images from Dropbox API...")
-        IMAGE_MAP = dropbox_list_all_images()
-
-        FABRIC_DATA = read_fabric_data(IMAGE_MAP)
-        matched = sum(1 for r in FABRIC_DATA if r['imagePath'])
-        print(f"Ready! {len(FABRIC_DATA)} records, {matched} with images")
+        data = r.json()
+        for entry in data.get('entries', []):
+            if entry.get('.tag') != 'file': continue
+            name = entry['name']
+            p = Path(name)
+            if p.suffix.lower() not in img_exts: continue
+            stem = p.stem
+            while True:
+                s2, e2 = os.path.splitext(stem)
+                if e2.lower() in img_exts: stem = s2
+                else: break
+            key = stem.upper().strip()
+            if key not in image_map:
+                image_map[key] = entry['path_lower']
     except Exception as e:
-        print(f"Startup error: {e}")
-    finally:
-        READY = True
+        print(f"Dropbox image list skipped: {e}")
+    return image_map
 
-threading.Thread(target=background_startup, daemon=True).start()
+# ── Load data SYNCHRONOUSLY at import time (no background thread) ──
+try:
+    print("Downloading Excel...")
+    r = requests.get(dropbox_direct(DROPBOX_EXCEL_LINK), timeout=20)
+    r.raise_for_status()
+    XLSX_PATH.write_bytes(r.content)
+    print(f"Excel: {len(r.content):,} bytes")
+except Exception as e:
+    print(f"Excel download failed: {e}")
+
+try:
+    IMAGE_MAP = dropbox_list_images()
+except Exception as e:
+    print(f"Image listing failed: {e}")
+    IMAGE_MAP = {}
+
+try:
+    FABRIC_DATA = read_fabric_data(IMAGE_MAP)
+    print(f"Loaded {len(FABRIC_DATA)} records, {len(IMAGE_MAP)} images available")
+except Exception as e:
+    print(f"Reading Excel data failed: {e}")
+    FABRIC_DATA = []
 
 @app.route('/')
 @app.route('/index.html')
@@ -189,26 +172,28 @@ def serve_img(key):
             'Authorization': f'Bearer {DROPBOX_ACCESS_TOKEN}',
             'Dropbox-API-Arg': json.dumps({'path': path}),
         }
-        r = requests.post(
-            'https://content.dropboxapi.com/2/files/download',
-            headers=headers, timeout=30
-        )
+        r = requests.post('https://content.dropboxapi.com/2/files/download', headers=headers, timeout=15)
         r.raise_for_status()
         ext = Path(path).suffix.lower()
         mime = {'.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp','.gif':'image/gif'}.get(ext,'image/jpeg')
         return Response(r.content, mimetype=mime, headers={'Cache-Control': 'public, max-age=86400'})
     except Exception as e:
-        print(f"Image fetch error for {key}: {e}")
         return '', 500
 
 @app.route('/api/status')
 def api_status():
     matched = sum(1 for r in FABRIC_DATA if r['imagePath'])
-    return jsonify({'ready': READY, 'records': len(FABRIC_DATA), 'images_total': len(IMAGE_MAP), 'images_matched': matched})
+    return jsonify({'records': len(FABRIC_DATA), 'images_total': len(IMAGE_MAP), 'images_matched': matched})
 
 @app.route('/api/refresh')
 def api_refresh():
-    global READY
-    READY = False
-    threading.Thread(target=background_startup, daemon=True).start()
-    return jsonify({'status': 'refreshing'})
+    global FABRIC_DATA, IMAGE_MAP
+    try:
+        r = requests.get(dropbox_direct(DROPBOX_EXCEL_LINK), timeout=20)
+        r.raise_for_status()
+        XLSX_PATH.write_bytes(r.content)
+        IMAGE_MAP = dropbox_list_images()
+        FABRIC_DATA = read_fabric_data(IMAGE_MAP)
+        return jsonify({'status': 'ok', 'count': len(FABRIC_DATA)})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
